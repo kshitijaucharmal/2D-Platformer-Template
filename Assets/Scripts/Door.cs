@@ -1,41 +1,60 @@
 using UnityEngine;
 using DG.Tweening;
 
-// For Doors, Vents, Windows, etc.
-public interface IOpenable{
-    bool IsOpen {get; set;}
-    void Toggle();
-    void Open();
-    void Close();
-}
-
 public class Door : MonoBehaviour, IOpenable{
 
     [SerializeField] private Ease easeType;
     [SerializeField] private float tweenTime = 0.4f;
+    [SerializeField] private int requiredKeys = 1;
+    [SerializeField] private Vector2 moveTo;
 
-    private float posY;
+    private Vector2 pos;
 
-    private float moveAmount;
     void Start(){
-        moveAmount = transform.localScale.y;
-        posY = transform.localPosition.y;
+        pos = transform.position;
+
+        RequiredKeys = requiredKeys;
+    }
+
+    void OnDrawGizmosSelected(){
+        Gizmos.color = Color.blue;
+        Gizmos.DrawSphere(moveTo, 0.3f);
+        Gizmos.DrawLine(transform.position, moveTo);
     }
 
     #region IOpenable
+    public int RequiredKeys { get; set; }
+    public int Keys { get; set; }
     public bool IsOpen {get;set;}
+
     public void Toggle(){
         IsOpen = !IsOpen;
         if(IsOpen) Open();
         else Close();
     }
+
+    public virtual void AddKey(int n=1){
+        Keys += n;
+        if(Keys >= RequiredKeys){
+            Open();
+        }
+    }
+    public virtual void RemoveKey(int n=1){
+        Keys -= n;
+        if(Keys < RequiredKeys) Close();
+        if(Keys <= 0){ 
+            Keys = 0;
+            Close();
+        }
+    }
+
     public virtual void Open(){ 
-        transform.DOLocalMoveY(posY + moveAmount, tweenTime).SetEase(easeType);
-        GetComponent<Collider2D>().enabled = false;
+        transform.DOMove(moveTo, tweenTime).SetEase(easeType);
+        // GetComponent<Collider2D>().enabled = false;
     }
     public virtual void Close(){ 
-        transform.DOLocalMoveY(posY, tweenTime).SetEase(easeType);
-        GetComponent<Collider2D>().enabled = true;
+        transform.DOMove(pos, tweenTime).SetEase(easeType);
+        // GetComponent<Collider2D>().enabled = true;
     }
     #endregion
 }

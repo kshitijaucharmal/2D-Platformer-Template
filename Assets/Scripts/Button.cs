@@ -1,28 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// For buttons, Pressure-pads, etc.
-public interface IPressable {
-    public bool PressOnEnter { get; set; }  // Activate on Enter
-    public bool ReleaseOnExit { get; set; } // Release On Exit
-    public bool Enabled {get; set;}         // Is Button Enabled
-    public bool CanPress { get; set; }      // Can Button Be Pressed (Object In Range?)
-    public bool IsPressed { get; set; }     // Is Button Pressed?
-    public bool DonePressing { get; set; }  // If Button is done pressing
-    public float TimePressed { get; set; }  // Time for which button is held
-    public float HoldTime { get; set;}      // TIme to hold the button down for
-
-    // Call when Starting to press or releasing
-    public void OnPress();
-    public void OnRelease();
-
-    // Enable/Disable Buttons
-    public void Enable();
-    public void Disable();
-}
-
 public class Button : MonoBehaviour, IPressable {
 
+    [Header("Start Variables")]
     // Define at start
     [SerializeField] bool isEnabled = false;
     // Input to interact with button
@@ -32,6 +13,8 @@ public class Button : MonoBehaviour, IPressable {
     [SerializeField] bool releaseOnExit = false;
     // time to hold button for
     [SerializeField] float ButtonHoldTime = 2f;
+    // Time button works for
+    [SerializeField] float activeTimeThreshold = 2f;
     // Holding indicator
     [SerializeField] Slider timeIndicator;
 
@@ -39,15 +22,18 @@ public class Button : MonoBehaviour, IPressable {
     [SerializeField] Door[] connectedTo;
 
     #region IPressable
-    public virtual bool PressOnEnter {get; set;}
-    public virtual bool ReleaseOnExit {get; set;}
-    public virtual bool Enabled {get; set;}
-    public virtual bool CanPress{ get; set; }
-    public virtual bool IsPressed{ get; set; }
-    public virtual bool DonePressing{ get; set; }
-    public virtual float HoldTime { get; set; }
+    public bool PressOnEnter {get; set;}
+    public bool ReleaseOnExit {get; set;}
+    public bool Enabled {get; set;}
+    public bool CanPress{ get; set; }
+    public bool IsPressed{ get; set; }
+    public bool IsOn{ get; set; }
 
-    public virtual float TimePressed { 
+    public float HoldTime { get; set; }
+    public float ActiveTime { get; set; }
+    public float ActiveThreshold { get; set; }
+
+    public float TimePressed { 
         get { return _TimePressed; }
         set{
             _TimePressed = value;
@@ -58,42 +44,75 @@ public class Button : MonoBehaviour, IPressable {
             // Run Release function when done pressing
             if (value >= HoldTime){
                 OnRelease();
-                DonePressing = true;
-
-                foreach(var c in connectedTo){
-                    c.Toggle();
-                }
+                SetState(!IsOn);
+                ActiveTime = 0;
             }
         }
     }
     private float _TimePressed = 0f;
 
-    public virtual void OnPress(){
+    // Events
+    public delegate void VoidFunc();
+
+    public event VoidFunc OnPress;
+    public event VoidFunc OnRelease;
+
+    // Execute when pressed
+    public virtual void Press(){
         IsPressed = true;
+        Debug.Log(gameObject.name + " pressed");
     }
-    public virtual void OnRelease(){
+    // Execute when released
+    public virtual void Release(){
         IsPressed = false;
-        // Reset time to 0 on release
-        TimePressed = 0f;
+        TimePressed = 0f; // Reset time to 0 on release
+        Debug.Log(gameObject.name + " released");
     }
 
     // Don't think these need to be virtual
     public void Enable() { Enabled = true;}
-    public void Disable() { Enabled = false;}
+    public void Disable() { Enabled = false; }
     #endregion
 
     void Start(){ 
+        Enabled = isEnabled;
         PressOnEnter = activateOnEnter;
         ReleaseOnExit = releaseOnExit;
-        Enabled = isEnabled;
         HoldTime = ButtonHoldTime;
+        ActiveThreshold = activeTimeThreshold;
+
+        // Set slider
         if(timeIndicator != null){
             timeIndicator.maxValue = HoldTime;
             timeIndicator.gameObject.SetActive(false);
         }
+
+        OnPress += Press;
+        OnRelease += Release;
+    }
+
+    void SetState(bool on){
+        IsOn = on;
+        foreach(var c in connectedTo){
+            if(c != null){
+                if(IsOn) c.AddKey();
+                else c.RemoveKey();
+            }
+        }
+        // if(!IsOn){
+        //     OnReset();
+        // }
     }
 
     void Update(){
+        if(IsOn && !PressOnEnter){
+            ActiveTime += Time.deltaTime;
+            if(ActiveTime > ActiveThreshold){
+                SetState(false);
+                ActiveTime = 0;
+            }
+        }
+
         // Return if not enabled, not in range or no input specified
         if(PressOnEnter || !Enabled || !CanPress || inputButton == "") return;
 
@@ -107,21 +126,15 @@ public class Button : MonoBehaviour, IPressable {
     void OnTriggerEnter2D(){ 
         if(PressOnEnter){ 
             OnPress();
-            DonePressing = true;
-            foreach(var c in connectedTo){
-                c.Toggle();
-            }
+            SetState(!IsOn);
         }
         CanPress = true;
         timeIndicator?.gameObject.SetActive(true);
     }
     void OnTriggerExit2D(){ 
-        if(PressOnEnter && ReleaseOnExit){
-            DonePressing = true;
-            foreach(var c in connectedTo){
-                c.Toggle();
-            }
-        }
+        if(PressOnEnter && ReleaseOnExit){ SetState(false); }
+        
+        // Release if exit
         OnRelease();
         CanPress = false;
         timeIndicator?.gameObject.SetActive(false);
@@ -131,7 +144,7 @@ public class Button : MonoBehaviour, IPressable {
     void OnDrawGizmosSelected(){
         Gizmos.color = Color.blue;
         foreach(var c in connectedTo){
-            Gizmos.DrawLine(transform.position, c.transform.position);
+            if(c != null) Gizmos.DrawLine(transform.position, c.transform.position);
         }
     }
 }

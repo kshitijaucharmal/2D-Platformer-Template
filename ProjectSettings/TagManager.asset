@@ -3,7 +3,8 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Checkpoint
   layers:
   - Default
   - TransparentFX
@@ -38,6 +39,15 @@ TagManager:
   - 
   - 
   m_SortingLayers:
+  - name: Ventback
+    uniqueID: 1145111829
+    locked: 0
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Doors
+    uniqueID: 1808480489
+    locked: 0
+  - name: VentFront
+    uniqueID: 3004630321
     locked: 0

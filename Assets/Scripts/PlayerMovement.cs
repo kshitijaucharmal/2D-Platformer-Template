@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour {
@@ -11,6 +9,12 @@ public class PlayerMovement : MonoBehaviour {
     [SerializeField] Vector3 groundCheckSize = new Vector3(1, 0.05f, 1);
     [SerializeField] float gravity = 10; // gravity to apply when in air
     [SerializeField] LayerMask whatIsGround; // can only jump if on ground layer
+
+    [Header("Better Platformer")]
+    [SerializeField] private float hangTime = 0.1f;
+    private float hangTimeCtr = 0;
+    [SerializeField] private float jumpBufferLength = 0.1f;
+    private float jumpBufferCtr = 0;
     
     // Private variables
     private Rigidbody2D rb;
@@ -31,9 +35,18 @@ public class PlayerMovement : MonoBehaviour {
         // Set gravity to 0 if on ground
         rb.gravityScale = isGrounded ? 0 : gravity;
 
+        // Hang/Coyote Time
+        if(isGrounded){ hangTimeCtr = hangTime; }
+        else hangTimeCtr -= Time.deltaTime;
+
+        // Jump Buffer
+        if(Input.GetButtonDown("Jump")) { jumpBufferCtr = jumpBufferLength; }
+        else jumpBufferCtr -= Time.deltaTime;
+
         // Jump Detection
-        if(isGrounded && Input.GetButtonDown("Jump")){
+        if(hangTimeCtr > 0f && jumpBufferCtr > 0){
             can_jump = true;
+            jumpBufferCtr = 0;
         }
         
         // Controlled Jump
